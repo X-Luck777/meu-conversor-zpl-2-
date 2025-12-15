@@ -1,7 +1,6 @@
-# Usa a imagem oficial do Node baseada em Debian (mais compatível)
 FROM node:18-bullseye
 
-# Instala TODAS as dependências de sistema necessárias para o Canvas
+# Instala dependências de sistema para o Canvas
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -16,14 +15,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copia APENAS o package.json (ignora o package-lock.json propositalmente)
+# Copia o package.json
 COPY package.json ./
 
-# Instala as dependências.
-# O flag --build-from-source força a recompilação do canvas para o sistema do Render
+# Instala dependências do Node forçando a compilação
 RUN npm install --build-from-source
 
-# Copia o resto dos arquivos
+# Copia o código do servidor
 COPY . .
 
 EXPOSE 3000
