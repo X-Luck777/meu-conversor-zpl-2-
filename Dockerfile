@@ -1,11 +1,7 @@
-# 1. Define a imagem base. Usamos a versão 'bullseye' do Node
-# porque ela é baseada em Debian, o que facilita a instalação
-# de drivers gráficos (diferente da versão 'alpine' que é muito pelada).
+# Usa a imagem oficial do Node baseada em Debian (mais compatível)
 FROM node:18-bullseye
 
-# 2. Instala dependências do sistema operacional necessárias para
-# manipulação de imagens (Canvas) e PDF.
-# Sem isso, bibliotecas que convertem ZPL/Imagens vão falhar no Render.
+# Instala TODAS as dependências de sistema necessárias para o Canvas
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -13,23 +9,23 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libgif-dev \
     librsvg2-dev \
+    python3 \
+    make \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Define a pasta de trabalho dentro do container
 WORKDIR /app
 
-# 4. Copia primeiro apenas os arquivos de dependência.
-# Isso é uma técnica de cache do Docker para deixar o deploy mais rápido.
-COPY package*.json ./
+# Copia APENAS o package.json (ignora o package-lock.json propositalmente)
+COPY package.json ./
 
-# 5. Instala as dependências do Node (express, pdfkit, etc.)
-RUN npm install
+# Instala as dependências.
+# O flag --build-from-source força a recompilação do canvas para o sistema do Render
+RUN npm install --build-from-source
 
-# 6. Copia o restante do código do seu projeto para o container
+# Copia o resto dos arquivos
 COPY . .
 
-# 7. Informa ao Render que o container vai usar a porta 3000
 EXPOSE 3000
 
-# 8. O comando que inicia o seu servidor
 CMD ["node", "server.js"]
