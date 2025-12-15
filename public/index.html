@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor ZPL para PDF (Offline)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 300px; font-family: monospace; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; margin-top: 10px;}
+        button:disabled { background: #ccc; }
+        #status { margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Conversor ZPL para PDF</h1>
+    <p>Cole seu código ZPL abaixo (suporta múltiplas etiquetas):</p>
+    <textarea id="zplInput" placeholder="^XA ... ^XZ"></textarea>
+    <br>
+    <button id="convertBtn" onclick="convertZPL()">Gerar PDF</button>
+    <div id="status"></div>
+
+    <script>
+        async function convertZPL() {
+            const zpl = document.getElementById('zplInput').value;
+            const btn = document.getElementById('convertBtn');
+            const status = document.getElementById('status');
+
+            if (!zpl) return alert("Cole o código ZPL!");
+
+            btn.disabled = true;
+            status.innerText = "Processando... (Isso pode levar alguns segundos para muitas etiquetas)";
+
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: zpl
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "etiquetas.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    status.innerText = "Concluído!";
+                } else {
+                    status.innerText = "Erro no servidor.";
+                }
+            } catch (e) {
+                console.error(e);
+                status.innerText = "Erro de conexão.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
