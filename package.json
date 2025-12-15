@@ -1,14 +1,17 @@
 {
-  "name": "zpl-to-pdf-converter",
+  "name": "zpl-to-pdf",
   "version": "1.0.0",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "pdfkit": "^0.13.0",
-    "js-zpl": "^1.0.3",
+    "canvas": "^2.11.2",
     "body-parser": "^1.20.2"
   }
 }
