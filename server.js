@@ -1,110 +1,96 @@
-// --- INÍCIO DOS POLYFILLS AVANÇADOS ---
-// Engana a biblioteca simulando um navegador completo
-const crypto = require('crypto');
-const util = require('util');
-const { performance } = require('perf_hooks');
-const { createCanvas } = require('canvas');
+// --- POLYFILLS (Engana a lib para rodar fora do navegador) ---
+import crypto from 'crypto';
+import { TextEncoder, TextDecoder } from 'util';
+import { performance } from 'perf_hooks';
+import { createCanvas } from 'canvas';
 
-// Polyfills básicos
-if (!globalThis.crypto) globalThis.crypto = crypto.webcrypto ? crypto.webcrypto : { getRandomValues: (arr) => crypto.randomBytes(arr.length) };
-if (!globalThis.TextEncoder) globalThis.TextEncoder = util.TextEncoder;
-if (!globalThis.TextDecoder) globalThis.TextDecoder = util.TextDecoder;
+// Define globais que a biblioteca zpl-renderer-js exige
+if (!globalThis.crypto) globalThis.crypto = { getRandomValues: (arr) => crypto.randomBytes(arr.length) };
+if (!globalThis.TextEncoder) globalThis.TextEncoder = TextEncoder;
+if (!globalThis.TextDecoder) globalThis.TextDecoder = TextDecoder;
 if (!globalThis.performance) globalThis.performance = performance;
 
-// Polyfills de ambiente gráfico (CRÍTICO para zpl-renderer-js em Node)
 globalThis.window = globalThis;
 globalThis.self = globalThis;
 globalThis.document = {
     createElement: (tag) => {
-        if (tag === 'canvas') return createCanvas(1, 1); // Retorna um canvas falso se pedido
+        // Se a lib pedir um canvas, entregamos um do Node
+        if (tag === 'canvas') return createCanvas(1, 1);
         return {};
     }
 };
 // --- FIM DOS POLYFILLS ---
 
-const express = require('express');
-const bodyParser = require('body-parser');
-const PDFDocument = require('pdfkit');
-const { Renderer } = require('zpl-renderer-js');
+import express from 'express';
+import bodyParser from 'body-parser';
+import PDFDocument from 'pdfkit';
+// A importação correta em ES Modules
+import { Renderer } from 'zpl-renderer-js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Aumenta o limite para 500MB (códigos ZPL com imagem são gigantes)
 app.use(bodyParser.text({ limit: '500mb' }));
 app.use(express.static('public'));
 
 app.post('/convert', async (req, res) => {
-    console.log("Recebendo requisição de conversão...");
-    
     try {
         const zplData = req.body;
         if (!zplData || zplData.trim().length === 0) {
-            return res.status(400).send('Nenhum código ZPL recebido.');
+            return res.status(400).send('ZPL Vazio');
         }
 
-        // REGEX ROBUSTO: Encontra blocos que começam com ^XA e terminam com ^XZ
-        // O split anterior falhava se tivesse sujeira entre as etiquetas
+        // Separação segura das etiquetas
         const regex = /\^XA[\s\S]*?\^XZ/g;
         const labels = zplData.match(regex);
 
         if (!labels || labels.length === 0) {
-             console.error("Nenhuma etiqueta ^XA...^XZ encontrada.");
-             return res.status(400).send('Formato inválido. Certifique-se que o código tem ^XA e ^XZ.');
+             return res.status(400).send('Nenhuma etiqueta ^XA...^XZ encontrada.');
         }
 
-        console.log(`Identificadas ${labels.length} etiquetas.`);
-
-        // Configuração do PDF (4x6 polegadas padrão)
+        // Inicia o PDF
         const doc = new PDFDocument({ autoFirstPage: false, size: [288, 432], margin: 0 });
         
-        // Timeout de segurança: Se o processamento travar, encerra a resposta
+        // Envia cabeçalhos. A partir daqui, NÃO podemos mais usar res.status().send()
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=etiquetas.pdf');
         doc.pipe(res);
 
         const renderer = new Renderer();
 
-        let successCount = 0;
-        let errorCount = 0;
+        console.log(`Iniciando conversão de ${labels.length} etiquetas...`);
 
         for (let i = 0; i < labels.length; i++) {
-            const labelZPL = labels[i];
             doc.addPage();
-
             try {
-                // Log para debug no Render
-                console.log(`Processando etiqueta ${i + 1}/${labels.length}...`);
-
-                // Tenta renderizar
-                const renderResult = await renderer.render(labelZPL);
+                // Tenta renderizar a etiqueta atual
+                const renderResult = await renderer.render(labels[i]);
                 
-                // Se o resultado for válido, desenha
-                if (renderResult) {
-                     doc.image(renderResult, 0, 0, { width: 288, height: 432, fit: [288, 432] });
-                     successCount++;
-                } else {
-                    throw new Error("Renderizador retornou vazio");
-                }
+                // Se deu certo, desenha
+                doc.image(renderResult, 0, 0, { width: 288, height: 432, fit: [288, 432] });
 
             } catch (renderError) {
-                errorCount++;
-                console.error(`ERRO CRÍTICO na etiqueta ${i + 1}:`, renderError);
+                // Se der erro nesta etiqueta, NÃO derruba o servidor.
+                // Apenas escreve o erro no PDF e pula para a próxima.
+                console.error(`Erro na etiqueta ${i+1}:`, renderError.message);
                 
-                // Desenha o erro no PDF para o usuário saber qual etiqueta falhou
-                doc.fillColor('red').fontSize(14).text('FALHA DE RENDERIZAÇÃO', 20, 50);
-                doc.fillColor('black').fontSize(8).text('Erro: ' + renderError.message, 20, 80);
-                doc.fontSize(6).text('Verifique se o ZPL contém comandos de imagem (~DGR) muito pesados.', 20, 100);
+                doc.fillColor('red').fontSize(12).text(`ERRO NA ETIQUETA ${i+1}`, 20, 50);
+                doc.fillColor('black').fontSize(8).text(renderError.message, 20, 70);
+                doc.fontSize(6).text(labels[i].substring(0, 100) + '...', 20, 100, {width: 250});
             }
         }
 
-        console.log(`Finalizado. Sucessos: ${successCount}, Erros: ${errorCount}`);
         doc.end();
 
-    } catch (error) {
-        console.error("Erro Geral no Servidor:", error);
-        // Se o PDF já começou a ser enviado, não podemos mandar status 500
-        if (!res.headersSent) res.status(500).send('Erro interno: ' + error.message);
+    } catch (fatalError) {
+        console.error("Erro Fatal:", fatalError);
+        // Só envia erro 500 se o download ainda não tiver começado
+        if (!res.headersSent) {
+            res.status(500).send('Erro interno: ' + fatalError.message);
+        } else {
+            // Se já começou, encerra a conexão para não travar o navegador
+            res.end();
+        }
     }
 });
 
