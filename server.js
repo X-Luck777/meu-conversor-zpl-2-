@@ -1,7 +1,22 @@
+// --- INÍCIO DOS POLYFILLS (Para corrigir o erro "Go.run" / "crypto") ---
+// Isso "engana" a biblioteca fazendo ela achar que está num navegador
+const crypto = require('crypto');
+const util = require('util');
+const { performance } = require('perf_hooks');
+
+if (!globalThis.crypto) {
+    globalThis.crypto = crypto.webcrypto ? crypto.webcrypto : {
+        getRandomValues: (arr) => crypto.randomBytes(arr.length)
+    };
+}
+if (!globalThis.TextEncoder) globalThis.TextEncoder = util.TextEncoder;
+if (!globalThis.TextDecoder) globalThis.TextDecoder = util.TextDecoder;
+if (!globalThis.performance) globalThis.performance = performance;
+// --- FIM DOS POLYFILLS ---
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const PDFDocument = require('pdfkit');
-// A biblioteca correta para "Ler ZPL e gerar Imagem"
 const { Renderer } = require('zpl-renderer-js');
 
 const app = express();
@@ -17,7 +32,7 @@ app.post('/convert', async (req, res) => {
             return res.status(400).send('Nenhum código ZPL recebido.');
         }
 
-        // Limpeza e separação das etiquetas
+        // Separa as etiquetas
         let rawLabels = zplData.split('^XZ');
         const labels = rawLabels
             .filter(l => l.includes('^XA'))
@@ -29,13 +44,12 @@ app.post('/convert', async (req, res) => {
              return res.status(400).send('Nenhuma etiqueta válida encontrada.');
         }
 
-        // Cria PDF
+        // PDF Config
         const doc = new PDFDocument({ autoFirstPage: false, size: [288, 432], margin: 0 });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=etiquetas.pdf');
         doc.pipe(res);
 
-        // Instancia o renderizador
         const renderer = new Renderer();
 
         let processedCount = 0;
@@ -44,20 +58,19 @@ app.post('/convert', async (req, res) => {
             doc.addPage();
 
             try {
-                // Renderiza o ZPL para um Buffer PNG
-                // A biblioteca retorna um Stream, precisamos converter para Buffer
+                // Tenta renderizar
                 const renderResult = await renderer.render(labelZPL);
                 
-                // O renderResult pode ser um Buffer direto ou um objeto Stream dependendo da versão.
-                // Vamos assumir que é um Buffer (padrão em libs de imagem Node)
+                // Desenha no PDF
                 doc.image(renderResult, 0, 0, { width: 288, height: 432, fit: [288, 432] });
 
             } catch (renderError) {
-                console.error(`Erro na etiqueta ${processedCount}:`, renderError);
+                console.error(`Erro na etiqueta ${processedCount}:`, renderError.message);
                 
-                // Fallback de erro visual no PDF
+                // Fallback de erro
                 doc.fillColor('red').fontSize(12).text('Erro visualização', 10, 20);
-                doc.fillColor('black').fontSize(6).text(labelZPL.substring(0, 200), 10, 50, {width: 260});
+                doc.fillColor('black').fontSize(6).text('Erro: ' + renderError.message, 10, 40);
+                doc.fontSize(4).text(labelZPL.substring(0, 500), 10, 60, {width: 260});
             }
         }
 
@@ -65,7 +78,7 @@ app.post('/convert', async (req, res) => {
 
     } catch (error) {
         console.error("Erro fatal:", error);
-        if (!res.headersSent) res.status(500).send('Erro no servidor.');
+        if (!res.headersSent) res.status(500).send('Erro no servidor: ' + error.message);
     }
 });
 
