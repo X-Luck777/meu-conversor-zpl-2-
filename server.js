@@ -31,8 +31,8 @@ const require = createRequire(import.meta.url);
 // 1. Carrega a biblioteca bruta
 const zplLib = require('zpl-renderer-js');
 
-// 2. Tenta pegar a classe de dentro (se estiver em .Renderer, .default ou se for a própria lib)
-const Renderer = zplLib.Renderer || zplLib.default || zplLib;
+// 2. Extrai a classe "Render" (que vimos no log) e atribui à variável Renderer
+const Renderer = zplLib.Render;
 
 // 3. LOG DE DEBUG (Isso vai aparecer no seu console do Render para termos certeza)
 console.log('=== TIPO DO RENDERER ===', typeof Renderer);
@@ -107,6 +107,7 @@ app.post('/convert', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 
 
 
