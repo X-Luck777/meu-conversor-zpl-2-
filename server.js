@@ -31,11 +31,9 @@ const require = createRequire(import.meta.url);
 // 1. Carrega o pacote bruto
 const zplPackage = require('zpl-renderer-js');
 
-// 2. Extrai a classe "Render" de dentro do pacote
-// IMPORTANTE: A biblioteca chama a classe de 'Render', mas seu código
-// usa 'Renderer'. Aqui nós atribuímos a classe 'Render' à variável 'Renderer'
-// para que o resto do seu código continue funcionando sem precisar mudar tudo.
-const Renderer = zplPackage.Render;
+// 2. Extrai a classe "Render" EXATAMENTE como apareceu no log
+// ATENÇÃO: Note que aqui escrevemos .Render (sem o 'er' no final)
+const Renderer = zplLib.Render;
 
 // 3. LOG DE DEBUG (Isso vai aparecer no seu console do Render para termos certeza)
 console.log('=== TIPO DO RENDERER ===', typeof Renderer);
@@ -110,6 +108,7 @@ app.post('/convert', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 
 
 
