@@ -28,11 +28,10 @@ import PDFDocument from 'pdfkit';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-// 1. Carrega o pacote bruto
-const zplPackage = require('zpl-renderer-js');
+// 1. PRIMEIRO: Carrega a biblioteca e guarda em 'zplLib'
+const zplLib = require('zpl-renderer-js');
 
-// 2. Extrai a classe "Render" EXATAMENTE como apareceu no log
-// ATENÇÃO: Note que aqui escrevemos .Render (sem o 'er' no final)
+// 2. DEPOIS: Usa 'zplLib' para pegar o 'Render'
 const Renderer = zplLib.Render;
 
 // 3. LOG DE DEBUG (Isso vai aparecer no seu console do Render para termos certeza)
@@ -108,6 +107,7 @@ app.post('/convert', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 
 
 
