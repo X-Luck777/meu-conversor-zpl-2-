@@ -25,8 +25,9 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import PDFDocument from 'pdfkit';
 // A importação correta em ES Modules
-import Renderer from 'zpl-renderer-js';
-
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const Renderer = require('zpl-renderer-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -97,6 +98,7 @@ app.post('/convert', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 
 
 
