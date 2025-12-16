@@ -27,7 +27,16 @@ import PDFDocument from 'pdfkit';
 // A importação correta em ES Modules
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const Renderer = require('zpl-renderer-js');
+
+// 1. Carrega a biblioteca bruta
+const zplLib = require('zpl-renderer-js');
+
+// 2. Tenta pegar a classe de dentro (se estiver em .Renderer, .default ou se for a própria lib)
+const Renderer = zplLib.Renderer || zplLib.default || zplLib;
+
+// 3. LOG DE DEBUG (Isso vai aparecer no seu console do Render para termos certeza)
+console.log('=== TIPO DO RENDERER ===', typeof Renderer);
+console.log('=== CONTEUDO DO RENDERER ===', Renderer);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -98,6 +107,7 @@ app.post('/convert', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 
 
 
